@@ -1,7 +1,7 @@
 # ArduinoTec-Pedals
-This project uses a Arduino Leonardo, Pro Micro or Teensy to replace the controller board of the Fanatec CSPV1.
+This project uses a Arduino Leonardo, Pro Micro or Teensy to replace the controller board of the Fanatec ClubSport Pedals V1/V2.
 
-See the [Circuit diagram](https://github.com/crmne/ArduinoTec-Pedals/blob/master/Circuit%20Diagram.PNG) for the wiring layout. _Note that the diagram is not updated to use the HX711 chip for the load cell brake yet_.
+See the [Circuit diagram](https://github.com/crmne/ArduinoTec-Pedals/blob/master/Circuit.png) for the wiring layout.
 
 ## Install dependencies
 
@@ -14,9 +14,9 @@ See the [Circuit diagram](https://github.com/crmne/ArduinoTec-Pedals/blob/master
 In addition to this you would need:
 
 1. [Arduino Leonardo](https://store.arduino.cc/usa/leonardo) or [Pro Micro 5V 16mhz](https://www.sparkfun.com/products/12640).
-2. a small breadboard or Arduino Shield (available on ebay and similar to the one shown [here](https://www.adafruit.com/product/51)) to place it on if you don't want to solder the cables onto the board directly
+2. A small breadboard to place it on if you don't want to solder the cables onto the board directly
 3. Connectors if you want to be able to connect the load cells and HE sensors via a connector block
-4. A HX711 chip for the load cell brake, the load cell, and two 1k ohm resistors. Connect them as per [this diagram](https://circuitjournal.com/50kg-load-cells-with-HX711) for single load cell.
+4. A HX711 chip for the load cell brake, the load cell, and two 1k ohm resistors.
 5. I re-used the Fanatec Hall Effect sensors as mine were still in good working order. If you do want to use another sensor, ensure it is a linear sensor with Analog output that can sense the distance of the magnet/and field variation. Do not use arduino ones as they one sense on/off and not field variation.
 
 Connect the items as per the diagram, write the code to the Arduino, plug into the USB, calibrate via driver calibration screen, and you are ready to race.
