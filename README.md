@@ -1,7 +1,7 @@
 # ArduinoTec-Pedals
 This project uses a Arduino Leonardo, Pro Micro or Teensy to replace the controller board of the Fanatec CSPV1.
 
-See the [Circuit diagram](Circuit Diagram.PNG) for the wiring layout. _Note that the diagram is not updated to use the HX711 chip for the load cell brake yet_.
+See the [Circuit diagram](https://github.com/crmne/ArduinoTec-Pedals/blob/master/Circuit%20Diagram.PNG) for the wiring layout. _Note that the diagram is not updated to use the HX711 chip for the load cell brake yet_.
 
 ## Install dependencies
 
