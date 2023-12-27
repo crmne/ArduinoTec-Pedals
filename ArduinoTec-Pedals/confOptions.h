@@ -1,7 +1,7 @@
 //confOptions.h
 //debug options
 #define Enable_Debug false
-#define Debug_Thr true
+#define Debug_Thr false
 #define Debug_Cth false
 #define Debug_Brk false
 
@@ -19,3 +19,6 @@
 #define brake_U_DZ 5
 #define throttle_U_DZ 5
 #define clutch_U_DZ 5
+
+// Brake calibration
+#define brake_calibration 696.0

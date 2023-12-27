@@ -1,20 +1,32 @@
 #include <Joystick.h>
+#include <HX711_ADC.h>
+#if defined(ESP8266)|| defined(ESP32) || defined(AVR)
+#include <EEPROM.h>
+#endif
 #include "confOptions.h"
 #define Throttle          A0
-#define Brake             A1
 #define Clutch            A2
 
 #define Throttle_I2       A5 //second input line (brown wire)
-#define Brake_I2          A6 //second input line (brown wire)
 #define Clutch_I2         A8 //second input line (brown wire)
 
 #define BrakeResistance   A3
-#define VibrationMotor    3
+// #define VibrationMotor    3
+
+const int HX711_dout = 3; //mcu > HX711 dout pin, must be external interrupt capable!
+const int HX711_sck = 5; //mcu > HX711 sck pin
 
 Joystick_ Joystick(JOYSTICK_DEFAULT_REPORT_ID,
                    JOYSTICK_TYPE_MULTI_AXIS, 0, 0,
                    false, false, false, true, false, false,
                    false, true, false, true, false);
+
+//HX711 constructor:
+HX711_ADC LoadCell(HX711_dout, HX711_sck);
+
+const int calVal_eepromAdress = 0;
+unsigned long t = 0;
+volatile boolean newDataReady;
 
 const int MaxRange = 1023;
 const int MinRange = 0;
@@ -37,8 +49,17 @@ bool dbg_PrintBrk = false;
 bool dbg_PrintCTH = false;
 
 void setup() {
-  delay(2000); //set a delay for everything to settle
-      
+  Serial.begin(57600);
+  delay(10);
+  Serial.println();
+  Serial.println("Starting...");
+
+  float calibrationValue = brake_calibration;
+#if defined(ESP8266) || defined(ESP32)
+  //EEPROM.begin(512); // uncomment this if you use ESP8266 and want to fetch the value from eeprom
+#endif
+  //EEPROM.get(calVal_eepromAdress, calibrationValue); // uncomment this if you want to fetch the value from eeprom
+
   debug = Enable_Debug;
   dbg_PrintThr = Debug_Thr;
   dbg_PrintBrk = Debug_Brk;
@@ -53,23 +74,47 @@ void setup() {
 
   // Setting Pin Modes
   pinMode(Throttle, INPUT); //Throttle  
-  pinMode(Brake, INPUT); //Brake
   pinMode(Clutch, INPUT); //Clutch
   
   //Setting optional pins states
   if (use_Dual_Thr) pinMode(Throttle_I2, INPUT); //Throttle input 2
   if (use_Dual_Cl) pinMode(Clutch_I2, INPUT); //Clutch input 2
-  if (use_Dual_Brk) pinMode(Brake_I2, INPUT); //Brake input 2
   
   pinMode(BrakeResistance, INPUT); //BrakeResistance;
-  pinMode(VibrationMotor, OUTPUT); // Vibration Motor Control this is paired with a transistor to control the motor
+  // pinMode(VibrationMotor, OUTPUT); // Vibration Motor Control this is paired with a transistor to control the motor
   pinMode(13, OUTPUT); // LED output
-  digitalWrite(VibrationMotor, HIGH); // set the pin as High, Low will result in the motor spinning
+  // digitalWrite(VibrationMotor, HIGH); // set the pin as High, Low will result in the motor spinning
 
   // get the baseline registering values
-  blBrk = get_baseline(Brake, 25);
   blThr = get_baseline(Throttle, 25);
   blCth = get_baseline(Clutch, 25);
+
+  LoadCell.setSamplesInUse(1);
+  LoadCell.begin();
+  LoadCell.setReverseOutput();
+  unsigned long stabilizingtime = 2000; // tare preciscion can be improved by adding a few seconds of stabilizing time
+  boolean _tare = true; //set this to false if you don't want tare to be performed in the next step
+  LoadCell.start(stabilizingtime, _tare);
+  if (LoadCell.getTareTimeoutFlag()) {
+    Serial.println("Timeout, check MCU>HX711 wiring and pin designations");
+    while (1);
+  }
+  else {
+    LoadCell.setCalFactor(calibrationValue); // set calibration value (float)
+    Serial.println("Startup is complete");
+  }
+
+  Serial.print("SPS set to: ");
+  Serial.println(LoadCell.getSPS());
+
+  attachInterrupt(digitalPinToInterrupt(HX711_dout), dataReadyISR, FALLING);
+}
+
+//interrupt routine:
+void dataReadyISR() {
+  if (LoadCell.update()) {
+    newDataReady = 1;
+  }
 }
 
 void loop() {
@@ -84,14 +129,22 @@ void loop() {
   if (use_Dual_Cl) valCth = abs((analogRead(Clutch)+analogRead(Clutch_I2))/2);
   else valCth = analogRead(Clutch);
   
-  if (use_Dual_Brk) valBrk = abs((analogRead(Brake)+analogRead(Brake_I2))/2);
-  else valBrk = analogRead(Brake);
-  
-  /* Original read statements
-  int valThr = analogRead(Throttle);
-  int valBrk = analogRead(Brake);
-  int valCth = analogRead(Clutch); */
-  
+  if (newDataReady) {
+      valBrk = int(LoadCell.getData());
+      newDataReady = 0;
+  }
+
+  // receive command from serial terminal, send 't' to initiate tare operation:
+  if (Serial.available() > 0) {
+    char inByte = Serial.read();
+    if (inByte == 't') LoadCell.tareNoDelay();
+  }
+
+  //check if last tare operation is complete
+  if (LoadCell.getTareStatus() == true) {
+    Serial.println("Tare complete");
+  }
+
   int valRestBrk = analogRead(BrakeResistance);
   double pers = get_Persentage(BrakeResistance); //get the resistance persentage to apply against the brake pedal which then halved
 
@@ -124,8 +177,8 @@ void loop() {
     Serial.println("");//create an empty line   
   }
 
-  if (actBrkVal > (maxBrk * 0.80)) digitalWrite(VibrationMotor, LOW); //enable the motor to spin when the pedal reaches 80% of the pedal pressure
-  else digitalWrite(VibrationMotor, HIGH); //stop the motor when it falls below 80%
+  // if (actBrkVal > (maxBrk * 0.80)) digitalWrite(VibrationMotor, LOW); //enable the motor to spin when the pedal reaches 80% of the pedal pressure
+  // else digitalWrite(VibrationMotor, HIGH); //stop the motor when it falls below 80%
 
   //Limit upperbound Noise
   if (actCthVal  > (maxCth - clutch_U_DZ)  ) {actCthVal  = (maxCth - clutch_U_DZ);}
