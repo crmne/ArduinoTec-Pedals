@@ -7,7 +7,6 @@ Joystick_ Joystick(JOYSTICK_DEFAULT_REPORT_ID, JOYSTICK_TYPE_MULTI_AXIS, 0, 0,
                    false, false, false, true, false, false, false, true, false,
                    true, false);
 
-// HX711 constructor:
 HX711_ADC LoadCell(HX711_dout, HX711_sck);
 
 volatile boolean newDataReady;
@@ -59,7 +58,6 @@ void setup() {
   if (use_Dual_Cl) pinMode(Clutch_I2, INPUT);     // Clutch input 2
 
   pinMode(BrakeResistance, INPUT);  // BrakeResistance;
-  pinMode(13, OUTPUT);              // LED output
 
   // get the baseline registering values
   blThr = get_baseline(Throttle, 25);
@@ -126,7 +124,7 @@ void loop() {
   }
 
   int valRestBrk = analogRead(BrakeResistance);
-  double pers = get_Percentage(
+  double pers = get_percentage(
       BrakeResistance);  // get the resistance percentage to apply against the
                          // brake pedal which then halved
 
@@ -218,7 +216,6 @@ int get_baseline(int pin, int count) {  // get the pedal baseline
   return maxVal;
 }
 
-double get_Percentage(int pinToRead) {
-  return (1 -
-          (double(analogRead(pinToRead)) / AxisMax));  // 1024 is the maximum
+double get_percentage(int pin) {
+  return (1 - (double(analogRead(pin)) / AxisMax));  // 1024 is the maximum
 }
