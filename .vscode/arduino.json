@@ -1,4 +1,7 @@
 {
     "board": "arduino:avr:micro",
-    "programmer": "avrispmkii"
+    "programmer": "avrispmkii",
+    "sketch": "ArduinoTec-Pedals/ArduinoTec-Pedals.ino",
+    "port": "/dev/tty.usbmodemHIDFD1",
+    "output": "./build"
 }
