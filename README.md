@@ -1,7 +1,9 @@
 # ArduinoTec-Pedals
 This project uses a Arduino Leonardo, Pro Micro or Teensy to replace the controller board of the Fanatec ClubSport Pedals V1/V2.
 
-See the [Circuit diagram](https://github.com/crmne/ArduinoTec-Pedals/blob/master/Circuit.png) for the wiring layout.
+See the [Circuit diagram](./Circuit.png) for the wiring layout.
+
+![Circuit diagram](./Circuit.png)
 
 ## Install dependencies
 
