@@ -1,0 +1,23 @@
+repos:
+  -   repo: https://github.com/pre-commit/pre-commit-hooks
+      rev: v4.5.0
+      hooks:
+      -   id: trailing-whitespace
+      -   id: end-of-file-fixer
+      -   id: check-yaml
+          args: [--allow-multiple-documents]
+      -   id: check-case-conflict
+      -   id: debug-statements
+      -   id: detect-private-key
+      -   id: check-merge-conflict
+      -   id: check-added-large-files
+          args: ['--maxkb=5000']
+  - repo: https://github.com/pocc/pre-commit-hooks
+    rev: v1.3.5
+    hooks:
+      - id: clang-format
+        args: ['-i', '--style=Google']
+      - id: cppcheck
+      - id: cpplint
+        args: ['--extensions=ino,h']
+      # - id: include-what-you-use
