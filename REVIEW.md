@@ -1,4 +1,10 @@
-# Review and improvement plan — 2026-09-22
+# Initial review and improvement plan — 2026-09-22
+
+This is the historical review before the calibration implementation. Its
+remaining-work list and proposed protocol are superseded by the current
+[README](README.md), [protocol](docs/calibration.md), and
+[development/validation guide](docs/development.md). Hardware validation remains
+outstanding.
 
 User-visible UI impact: no graphical UI changes. The reliability patch changes
 pedal reports on zero/negative readings and near deadzones. Physical pedal and
