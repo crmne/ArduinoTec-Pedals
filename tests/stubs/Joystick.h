@@ -1,7 +1,7 @@
 #ifndef TESTS_STUBS_JOYSTICK_H_
 #define TESTS_STUBS_JOYSTICK_H_
 #define JOYSTICK_DEFAULT_REPORT_ID 3
-#define JOYSTICK_TYPE_MULTI_AXIS 8
+#define JOYSTICK_TYPE_JOYSTICK 4
 class Joystick_ {
  public:
   template <typename... Args>
