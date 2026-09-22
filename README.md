@@ -5,10 +5,11 @@ amplifier into standalone USB racing pedals. Originally made for Fanatec
 ClubSport V1/V2 pedals; other pedals can work with compatible sensors and wiring.
 The pedals connect to your **computer by USB**, separately from your wheelbase.
 
-**Development preview:** the new calibration firmware builds for all three
-boards below and passes simulated regression tests. It has not yet been tested
-on physical pedals. Do the checks below before using it in a race. No published
-release is implied by this README.
+**0.2.0 release candidate 1:** intended for hardware testing, not a stable
+release. The firmware builds for all three boards below and passes simulated
+regression tests. It has not yet been tested on physical pedals. Read the
+[release notes](docs/releases/0.2.0-rc.1.md) and do the checks below before
+using it in a race.
 
 This version adds saved calibration, automatic sensor direction detection,
 a guided setup tool, a 1,000 Hz report target, brake fault detection, and builds
