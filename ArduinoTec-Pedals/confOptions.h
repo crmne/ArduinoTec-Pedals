@@ -13,7 +13,7 @@
 
 #define BrakeResistance A3
 
-// mcu > HX711 dout pin, must be external interrupt capable!
+// mcu > HX711 dout pin (polled from the main loop)
 #define HX711_dout 3
 // mcu > HX711 sck pin
 #define HX711_sck 5

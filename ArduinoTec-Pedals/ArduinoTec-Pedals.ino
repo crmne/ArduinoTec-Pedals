@@ -1,7 +1,9 @@
 #include <HX711_ADC.h>
 #include <Joystick.h>
+#include <limits.h>
 
 #include "confOptions.h"
+#include "pedalMath.h"
 
 Joystick_ Joystick(JOYSTICK_DEFAULT_REPORT_ID, JOYSTICK_TYPE_MULTI_AXIS, 0, 0,
                    false, false, false, true, false, false, false, true, false,
@@ -9,7 +11,7 @@ Joystick_ Joystick(JOYSTICK_DEFAULT_REPORT_ID, JOYSTICK_TYPE_MULTI_AXIS, 0, 0,
 
 HX711_ADC LoadCell(HX711_dout, HX711_sck);
 
-volatile boolean newDataReady;
+int lastBrakeReading = 0;
 
 const int MaxRange = 1023;
 const int MinRange = 0;
@@ -22,9 +24,6 @@ int blCth = 0;
 int maxBrk = 0;  // max value for Brake
 int maxThr = 0;  // max value for Throttle
 int maxCth = 0;  // max value for Clutch
-bool aveBrkSet = false;
-bool aveThrSet = false;
-bool aveCthSet = false;
 
 bool debug = false;
 bool dbg_PrintThr = false;
@@ -47,7 +46,7 @@ void setup() {
   Joystick.setThrottleRange(MinRange, MaxRange);
   Joystick.setBrakeRange(MinRange, MaxRange);
 
-  Joystick.begin(true);
+  Joystick.begin(false);
 
   // Setting Pin Modes
   pinMode(Throttle, INPUT);  // Throttle
@@ -60,8 +59,8 @@ void setup() {
   pinMode(BrakeResistance, INPUT);  // BrakeResistance;
 
   // get the baseline registering values
-  blThr = get_baseline(Throttle, 25);
-  blCth = get_baseline(Clutch, 25);
+  blThr = get_baseline(Throttle, Throttle_I2, use_Dual_Thr, 25);
+  blCth = get_baseline(Clutch, Clutch_I2, use_Dual_Cl, 25);
 
   LoadCell.setSamplesInUse(1);
   LoadCell.begin();
@@ -80,37 +79,23 @@ void setup() {
 
   Serial.print("SPS set to: ");
   Serial.println(LoadCell.getSPS());
-
-  attachInterrupt(digitalPinToInterrupt(HX711_dout), dataReadyISR, FALLING);
-}
-
-// interrupt routine:
-void dataReadyISR() {
-  if (LoadCell.update()) {
-    newDataReady = 1;
-  }
 }
 
 void loop() {
   // reading the relevant values from the pedals
-  int valThr = 0;
-  int valBrk = 0;
-  int valCth = 0;
+  int valThr = read_pedal(Throttle, Throttle_I2, use_Dual_Thr);
+  int valCth = read_pedal(Clutch, Clutch_I2, use_Dual_Cl);
 
-  if (use_Dual_Thr)
-    valThr = abs((analogRead(Throttle) + analogRead(Throttle_I2)) / 2);
-  else
-    valThr = analogRead(Throttle);
-
-  if (use_Dual_Cl)
-    valCth = abs((analogRead(Clutch) + analogRead(Clutch_I2)) / 2);
-  else
-    valCth = analogRead(Clutch);
-
-  if (newDataReady) {
-    valBrk = int(LoadCell.getData());
-    newDataReady = 0;
+  // Poll in the main loop so getData() cannot race an ISR modifying its
+  // dataset. Keep the last conversion between HX711 samples, including zero on
+  // release.
+  if (LoadCell.update()) {
+    float sample = LoadCell.getData();
+    lastBrakeReading = sample >= INT_MAX
+                           ? INT_MAX
+                           : (sample > 0 ? static_cast<int>(sample) : 0);
   }
+  int valBrk = lastBrakeReading;
 
   // receive command from serial terminal, send 't' to initiate tare operation:
   if (Serial.available() > 0) {
@@ -124,9 +109,7 @@ void loop() {
   }
 
   int valRestBrk = analogRead(BrakeResistance);
-  double pers = get_percentage(
-      BrakeResistance);  // get the resistance percentage to apply against the
-                         // brake pedal which then halved
+  double pers = 1.0 - double(valRestBrk) / AxisMax;
 
   // All values below are normalised and converted to absolute to ensure a
   // positive value
@@ -175,47 +158,25 @@ void loop() {
     Serial.println("");  // create an empty line
   }
 
-  // Limit upperbound Noise
-  if (actCthVal > (maxCth - clutch_U_DZ)) {
-    actCthVal = (maxCth - clutch_U_DZ);
-  }
-  if (actThrVal > (maxThr - throttle_U_DZ)) {
-    actThrVal = (maxThr - throttle_U_DZ);
-  }
-  if (PersBrkVal > (maxBrk - brake_U_DZ)) {
-    PersBrkVal = (maxBrk - brake_U_DZ);
-  }
-
-  // set the values applying base deadzone
-  if (valCth > 0) {
-    if (actCthVal > clutch_L_DZ)
-      Joystick.setRxAxis(actCthVal);
-    else
-      Joystick.setRxAxis(0);
-  }
-  if (valThr > 0) {
-    if (actThrVal > throttle_L_DZ)
-      Joystick.setThrottle(actThrVal);
-    else
-      Joystick.setThrottle(0);
-  }
-  if (valBrk > 0) {
-    if (actBrkVal > brake_L_DZ)
-      Joystick.setBrake(PersBrkVal);
-    else
-      Joystick.setBrake(0);
-  }
+  Joystick.setRxAxis(
+      apply_deadzones(actCthVal, maxCth, clutch_L_DZ, clutch_U_DZ, MaxRange));
+  Joystick.setThrottle(apply_deadzones(actThrVal, maxThr, throttle_L_DZ,
+                                       throttle_U_DZ, MaxRange));
+  Joystick.setBrake(
+      apply_deadzones(PersBrkVal, maxBrk, brake_L_DZ, brake_U_DZ, MaxRange));
+  Joystick.sendState();
 }
 
-int get_baseline(int pin, int count) {  // get the pedal baseline
+int read_pedal(int pin, int secondPin, bool dual) {
+  int value = analogRead(pin);
+  return dual ? (value + analogRead(secondPin)) / 2 : value;
+}
+
+int get_baseline(int pin, int secondPin, bool dual, int count) {
   int maxVal = 0;
   for (int i = 0; i < count; i++) {
-    int newVal = analogRead(pin);
+    int newVal = read_pedal(pin, secondPin, dual);
     if (maxVal < newVal) maxVal = newVal;
   }
   return maxVal;
-}
-
-double get_percentage(int pin) {
-  return (1 - (double(analogRead(pin)) / AxisMax));  // 1024 is the maximum
 }
